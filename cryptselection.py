@@ -2,6 +2,9 @@
 
 # Copyright 2015 Klaus Holler <kho@gmx.at>
 # License:  same as zim (gpl)
+#
+# TODO support on-the-fly decryption, too,
+#      if ------BEGIN PGP MESSAGE------ ... ------END PGP MESSAGE------ is selected.
 
 from __future__ import with_statement
 
@@ -29,6 +32,14 @@ with a specified encryption command (e.g. gpg).
 		'help': 'Plugins:Crypt Selection',
 	}
 
+	plugin_preferences = [
+		# key, type, label, default
+		('encryption_command', 'string', _('Encryption Command (reads plaintext from stdin)'), 
+				'/usr/bin/gpg --always-trust -ear RECIPIENT'), # T: plugin preference
+		# TODO
+		#('decryption_command', 'string', _('Decryption Command (reads encrypted text from stdin)'), '/usr/bin/gpg'), # T: plugin preference
+	]
+
 
 @extends('MainWindow')
 class MainWindowExtension(WindowExtension):
@@ -44,6 +55,10 @@ class MainWindowExtension(WindowExtension):
 		</menubar>
 	</ui>
 	'''
+
+	def __init__(self, plugin, window):
+		WindowExtension.__init__(self, plugin, window)
+		self.preferences = plugin.preferences
 
 	@action(_('Cr_ypt selection')) # T: menu item
 	# TODO: add stock parameter to set icon
@@ -64,19 +79,14 @@ class MainWindowExtension(WindowExtension):
 			assert buffer.get_has_selection(), 'No Selection present'
 			sel_text = self.window.pageview.get_selection(format='wiki')
 			self_bounds = (sel_start.get_offset(), sel_end.get_offset())
-			# TODO remove hardcoded recipient
-			enccmd = '/usr/bin/gpg -ear kho@gmx.at --always-trust'
-			cryptcmd = enccmd.split(" ")
+			cryptcmd = self.preferences['encryption_command'].split(" ")
 			newtext = None
 			p = Popen(cryptcmd, stdin=PIPE, stdout=PIPE)
 			newtext, err = p.communicate(input=sel_text)
-			if newtext is None:
-				buffer.insert_at_cursor("cryptcmd '%s' failed - got '%s'" % (cryptcmd, err))
-			else:	# delete selection only if crypt command was successful
+			if p.returncode == 0:
+				# replace selection only if crypt command was successful (incidated by returncode 0)
 				bounds = map(buffer.get_iter_at_offset, self_bounds)
 				buffer.delete(*bounds)
 				buffer.insert_at_cursor("\n%s\n" % newtext)
-			# Replace selection
-			#buffer.delete(iter_begin_line, iter_end_line)
-			#for line in sorted_lines:
-			#	buffer.insert_parsetree_at_cursor(line[1])
+			else:
+				logger.warn("crypt command '%s' returned code %d." % (cryptcmd, p.returncode))
