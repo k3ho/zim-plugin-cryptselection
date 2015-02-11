@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
-
+# cryptselection plugin for zim
+#
 # Copyright 2015 Klaus Holler <kho@gmx.at>
 # License:  same as zim (gpl)
+#
+# Usage: 
+# * Put the cryptselection/ directory to your ~/.local/share/zim/plugins subdirectory
+#   i.e. cd ~/.local/share/zim/plugins &&
+#        git clone https://github.com/k3ho/zim-plugin-cryptselection.git cryptselection
 #
 # TODO support on-the-fly decryption, too,
 #      if ------BEGIN PGP MESSAGE------ ... ------END PGP MESSAGE------ is selected.
