@@ -4,17 +4,20 @@
 # Copyright 2015 Klaus Holler <kho@gmx.at>
 # License:  same as zim (gpl)
 #
-# Usage: 
+# Installation/Usage:
 # * Put the cryptselection/ directory to your ~/.local/share/zim/plugins subdirectory
 #   i.e. cd ~/.local/share/zim/plugins &&
 #        git clone https://github.com/k3ho/zim-plugin-cryptselection.git cryptselection
-#
-# TODO support on-the-fly decryption, too,
-#      if ------BEGIN PGP MESSAGE------ ... ------END PGP MESSAGE------ is selected.
+# * Then (re)start zim, and setup once the 'Crypt Selection' plugin:
+#   * enable it in Edit>Preferences>Plugins and
+#   * set the encryption/decryption commands via 'Configure' button
+# * For in-place decryption gpg-agent should be started before starting zim and be
+#   configured properly to display a pinentry popup to ask for the PGP key passphrase.
 
 from __future__ import with_statement
 
 import gtk
+import re
 from subprocess import Popen, PIPE
 
 from zim.plugins import PluginClass, extends, WindowExtension
@@ -33,6 +36,9 @@ class CryptSelectionPlugin(PluginClass):
 		'description': _('''\
 This plugin encrypts or decrypts the current selection 
 with a specified encryption command (e.g. gpg).
+If -----BEGIN PGP MESSAGE----- is found at selection
+start and -----END PGP MESSAGE----- found at selection
+end then decrypt, otherwise encrypt.
 '''), # T: plugin description
 		'author': 'Klaus Holler',
 		'help': 'Plugins:Crypt Selection',
@@ -40,10 +46,12 @@ with a specified encryption command (e.g. gpg).
 
 	plugin_preferences = [
 		# key, type, label, default
-		('encryption_command', 'string', _('Encryption Command (reads plaintext from stdin)'), 
-				'/usr/bin/gpg --always-trust -ear RECIPIENT'), # T: plugin preference
-		# TODO
-		#('decryption_command', 'string', _('Decryption Command (reads encrypted text from stdin)'), '/usr/bin/gpg'), # T: plugin preference
+		('encryption_command', 'string',
+				_('Encryption Command (reads plaintext from stdin)'),
+				'/usr/bin/gpg2 --always-trust -ear RECIPIENT'), # T: plugin preference
+		('decryption_command', 'string',
+				_('Decryption Command (reads encrypted text from stdin)'),
+				'/usr/bin/gpg2 -d'), # T: plugin preference
 	]
 
 
@@ -85,7 +93,13 @@ class MainWindowExtension(WindowExtension):
 			assert buffer.get_has_selection(), 'No Selection present'
 			sel_text = self.window.pageview.get_selection(format='wiki')
 			self_bounds = (sel_start.get_offset(), sel_end.get_offset())
-			cryptcmd = self.preferences['encryption_command'].split(" ")
+			if ((re.match('[\n\s]*\-{5}BEGIN PGP MESSAGE\-{5}', sel_text) is None) or
+				re.search('\s*\-{5}END PGP MESSAGE\-{5}[\n\s]*$', sel_text) is None):
+				# default is encryption:
+				cryptcmd = self.preferences['encryption_command'].split(" ")
+			else:
+				# on-the-fly decryption if selection is a full PGP encrypted block
+				cryptcmd = self.preferences['decryption_command'].split(" ")
 			newtext = None
 			p = Popen(cryptcmd, stdin=PIPE, stdout=PIPE)
 			newtext, err = p.communicate(input=sel_text)
