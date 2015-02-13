@@ -29,12 +29,12 @@ logger = logging.getLogger('zim.plugins.cryptselection')
 class CryptSelectionPlugin(PluginClass):
 
 	plugin_info = {
-		'name': _('Crypt Plugin'), # T: plugin name
+		'name': _('Crypt Selection'), # T: plugin name
 		'description': _('''\
 This plugin encrypts or decrypts the current selection 
 with a specified encryption command (e.g. gpg).
 '''), # T: plugin description
-		'author': 'KlausHoller',
+		'author': 'Klaus Holler',
 		'help': 'Plugins:Crypt Selection',
 	}
 
