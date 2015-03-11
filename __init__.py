@@ -81,7 +81,7 @@ class MainWindowExtension(WindowExtension):
 		try:
 			sel_start, sel_end = buffer.get_selection_bounds()
 		except ValueError:
-			MessageDialog(self.ui,
+			MessageDialog(self.window.ui,
 				_('Please select the text to be encrypted, first.')).run()
 				# T: Error message in "crypt selection" dialog, %s will be replaced by application name
 			return
