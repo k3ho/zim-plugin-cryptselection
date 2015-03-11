@@ -109,12 +109,14 @@ class MainWindowExtension(WindowExtension):
             if p.returncode == 0:
                 # replace selection only if crypt command was successful
                 # (incidated by returncode 0)
-                #if encrypt == True:
-                bounds = map(buffer.get_iter_at_offset, self_bounds)
-                buffer.delete(*bounds)
-                buffer.insert_at_cursor("\n%s\n" % newtext)
-                #else:
-                #    logger.warn("decrypt dialog to be shown")
+                if encrypt is True:
+                    bounds = map(buffer.get_iter_at_offset, self_bounds)
+                    buffer.delete(*bounds)
+                    buffer.insert_at_cursor("\n%s\n" % newtext)
+                else:
+                    # just show decrypted text in popup
+                    MessageDialog(self.window.ui,
+                        _("Decrypted Text: \n" + newtext)).run()
             else:
                 logger.warn("crypt command '%s' returned code %d." % (cryptcmd,
                             p.returncode))
