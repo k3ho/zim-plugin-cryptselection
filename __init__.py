@@ -16,13 +16,15 @@
 
 from __future__ import with_statement
 
+from gi.repository import Gtk
 import gtk
 import re
 from subprocess import Popen, PIPE
 
-from zim.plugins import PluginClass, extends, WindowExtension
+from zim.plugins import PluginClass
 from zim.actions import action
-from zim.gui.widgets import ui_environment, MessageDialog
+
+from zim.gui.pageview import PageViewExtension
 
 import logging
 
@@ -55,34 +57,22 @@ end then decrypt, otherwise encrypt.
     ]
 
 
-@extends('MainWindow')
-class MainWindowExtension(WindowExtension):
+class CryptoSelectionPageViewExtension(PageViewExtension):
 
-    uimanager_xml = '''
-    <ui>
-        <menubar name='menubar'>
-            <menu action='edit_menu'>
-                <placeholder name='plugin_items'>
-                    <menuitem action='crypt_selection'/>
-                </placeholder>
-            </menu>
-        </menubar>
-    </ui>
-    '''
+    plugin = None
 
-    def __init__(self, plugin, window):
-        WindowExtension.__init__(self, plugin, window)
-        self.preferences = plugin.preferences
+    def __init__(self, plugin, pageview):
+        PageViewExtension.__init__(self, plugin, pageview)
+        self.plugin = plugin
 
-    @action(_('Cr_ypt selection')) # T: menu item
-    # TODO: add stock parameter to set icon
+    @action(_('Cr_ypt selection'), menuhints='edit') # T: menu item
     def crypt_selection(self):
-        buffer = self.window.pageview.view.get_buffer()
+        buffer = self.pageview.textview.get_buffer()
         try:
             sel_start, sel_end = buffer.get_selection_bounds()
         except ValueError:
-            MessageDialog(self.window.ui,
-                _('Please select the text to be encrypted, first.')).run()
+            Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.WARNING, Gtk.ButtonsType.CLOSE,
+                                    _("Please select the text to be encrypted, first.")).run()
                 # T: Error message in "crypt selection" dialog, %s will be replaced
                 # by application name
             return
@@ -92,31 +82,31 @@ class MainWindowExtension(WindowExtension):
 
         with buffer.user_action:
             assert buffer.get_has_selection(), 'No Selection present'
-            sel_text = self.window.pageview.get_selection(format='wiki')
+            sel_text = self.pageview.get_selection(format='wiki')
             self_bounds = (sel_start.get_offset(), sel_end.get_offset())
             if ((re.match(r'[\n\s]*\-{5}BEGIN PGP MESSAGE\-{5}', sel_text) is None) or
                 re.search(r'\s*\-{5}END PGP MESSAGE\-{5}[\n\s]*$', sel_text) is None):
                 # default is encryption:
                 encrypt = True
-                cryptcmd = self.preferences['encryption_command'].split(" ")
+                cryptcmd = self.plugin.preferences['encryption_command'].split(" ")
             else:
                 # on-the-fly decryption if selection is a full PGP encrypted block
                 encrypt = False
-                cryptcmd = self.preferences['decryption_command'].split(" ")
+                cryptcmd = self.plugin.preferences['decryption_command'].split(" ")
             newtext = None
             p = Popen(cryptcmd, stdin=PIPE, stdout=PIPE)
-            newtext, err = p.communicate(input=sel_text)
+            newtext, err = p.communicate(input=sel_text.encode())
             if p.returncode == 0:
                 # replace selection only if crypt command was successful
                 # (incidated by returncode 0)
                 if encrypt is True:
                     bounds = map(buffer.get_iter_at_offset, self_bounds)
                     buffer.delete(*bounds)
-                    buffer.insert_at_cursor("\n%s\n" % newtext)
+                    buffer.insert_at_cursor("\n%s\n" % newtext.decode())
                 else:
                     # just show decrypted text in popup
-                    MessageDialog(self.window.ui,
-                        _("Decrypted Text: \n" + newtext)).run()
+                    Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
+                                    _("Decrypted Text: \n" + newtext.decode())).run()
             else:
                 logger.warn("crypt command '%s' returned code %d." % (cryptcmd,
                             p.returncode))
