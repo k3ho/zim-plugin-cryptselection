@@ -71,7 +71,7 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
         try:
             sel_start, sel_end = buffer.get_selection_bounds()
         except ValueError:
-            msg = Gtk.MessageDialog(None, Gtk.DialogFlags.MODAL, Gtk.MessageType.WARNING, Gtk.ButtonsType.CLOSE,
+            msg = Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.WARNING, Gtk.ButtonsType.CLOSE,
                                     _("Please select the text to be encrypted, first."))
             msg.run()
             msg.destroy()
