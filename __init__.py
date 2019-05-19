@@ -71,8 +71,10 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
         try:
             sel_start, sel_end = buffer.get_selection_bounds()
         except ValueError:
-            Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.WARNING, Gtk.ButtonsType.CLOSE,
-                                    _("Please select the text to be encrypted, first.")).run()
+            msg = Gtk.MessageDialog(None, Gtk.DialogFlags.MODAL, Gtk.MessageType.WARNING, Gtk.ButtonsType.CLOSE,
+                                    _("Please select the text to be encrypted, first."))
+            msg.run()
+            msg.destroy()
                 # T: Error message in "crypt selection" dialog, %s will be replaced
                 # by application name
             return
@@ -105,8 +107,10 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
                     buffer.insert_at_cursor("\n%s\n" % newtext.decode())
                 else:
                     # just show decrypted text in popup
-                    Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
-                                    _("Decrypted Text: \n" + newtext.decode())).run()
+                    msg = Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
+                                    _("Decrypted Text: \n" + newtext.decode()))
+                    msg.run()
+                    msg.destroy()
             else:
                 logger.warn("crypt command '%s' returned code %d." % (cryptcmd,
                             p.returncode))
