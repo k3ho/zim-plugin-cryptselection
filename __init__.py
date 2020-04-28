@@ -20,11 +20,13 @@ from gi.repository import Gtk
 import gtk
 import re
 from subprocess import Popen, PIPE
+import shlex
 
 from zim.plugins import PluginClass
 from zim.actions import action
 
 from zim.gui.pageview import PageViewExtension
+from zim.formats import get_format
 
 import logging
 
@@ -90,11 +92,11 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
                 re.search(r'\s*\-{5}END PGP MESSAGE\-{5}[\n\s]*$', sel_text) is None):
                 # default is encryption:
                 encrypt = True
-                cryptcmd = self.plugin.preferences['encryption_command'].split(" ")
+                cryptcmd = shlex.split(self.plugin.preferences['encryption_command'])
             else:
                 # on-the-fly decryption if selection is a full PGP encrypted block
                 encrypt = False
-                cryptcmd = self.plugin.preferences['decryption_command'].split(" ")
+                cryptcmd = shlex.split(self.plugin.preferences['decryption_command'])
             newtext = None
             p = Popen(cryptcmd, stdin=PIPE, stdout=PIPE)
             newtext, err = p.communicate(input=sel_text.encode())
@@ -106,11 +108,14 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
                     buffer.delete(*bounds)
                     buffer.insert_at_cursor("\n%s\n" % newtext.decode())
                 else:
-                    # just show decrypted text in popup
-                    msg = Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
-                                    _("Decrypted Text: \n" + newtext.decode()))
-                    msg.run()
-                    msg.destroy()
+                    # replace selection with decrypted text
+                    parser = get_format('wiki').Parser()
+                    tree = parser.parse(newtext.decode())
+                    with buffer.user_action:
+                        bounds = map(buffer.get_iter_at_offset, self_bounds)
+                        buffer.delete(*bounds)
+                        buffer.insert_parsetree_at_cursor(tree,interactive=True)
+
             else:
                 logger.warn("crypt command '%s' returned code %d." % (cryptcmd,
                             p.returncode))
