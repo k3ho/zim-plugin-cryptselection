@@ -54,6 +54,9 @@ end then decrypt, otherwise encrypt.
         ('decryption_command', 'string',
                 _('Decryption Command (reads encrypted text from stdin)'),
                 '/usr/bin/gpg2 -d'), # T: plugin preference
+        ('decrypt_in_place', 'bool',
+                _("Decrypt data in place, instead of in a pop-up window"),
+                False),
     ]
 
 
@@ -104,13 +107,20 @@ class CryptoSelectionPageViewExtension(PageViewExtension):
                 if encrypt is True:
                     bounds = map(buffer.get_iter_at_offset, self_bounds)
                     buffer.delete(*bounds)
-                    buffer.insert_at_cursor("\n%s\n" % newtext.decode())
+                    buffer.insert_at_cursor("%s\n" % newtext.decode())
                 else:
-                    # just show decrypted text in popup
-                    msg = Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
-                                    _("Decrypted Text: \n" + newtext.decode()))
-                    msg.run()
-                    msg.destroy()
+
+                    if self.plugin.preferences['decrypt_in_place']:
+                        bounds = map(buffer.get_iter_at_offset, self_bounds)
+                        buffer.delete(*bounds)
+                        buffer.insert_at_cursor(newtext.decode())
+                    else:
+                        # just show decrypted text in popup
+                        msg = Gtk.MessageDialog(None, Gtk.DialogFlags.DESTROY_WITH_PARENT, Gtk.MessageType.INFO, Gtk.ButtonsType.CLOSE,
+                                        _("Decrypted Text: \n" + newtext.decode()))
+                        msg.run()
+                        msg.destroy()
+
             else:
                 logger.warn("crypt command '%s' returned code %d." % (cryptcmd,
                             p.returncode))
